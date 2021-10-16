@@ -44,8 +44,8 @@ class Game:
         if self.config.game_type == GameConstant.BVB:
             if not self.config.is_dump:
                 # You can change model used here
-                model1 = Minimax()
-                model2 = Minimax()
+                model1 = LocalSearch()
+                model2 = LocalSearch()
             else:
                 # Don't change this
                 model1 = pickle.load(open(Path.BVB_P1, "rb"))
