@@ -3,7 +3,7 @@ from time import time
 
 from src.constant import ShapeConstant, GameConstant
 from src.model import State, Board, Player, Piece
-from src.utility import is_out
+from src.utility import is_out, check_streak
 
 from typing import Tuple, List
 
