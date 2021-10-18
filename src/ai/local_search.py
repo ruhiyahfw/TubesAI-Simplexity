@@ -1,22 +1,19 @@
+from typing import Tuple, List
+
 import random
 from time import time
 import threading
 import _thread as thread
+import copy
 
-from src.constant import ShapeConstant, GameConstant
+from src.constant import *
 from src.model import State, Board, Player, Piece
-from src.utility import is_out, check_streak
-
-from typing import Tuple, List
-
-class Value:
-    WIN = 1000
-    LOSE = -1000
+from src.utility import is_full, is_out, check_streak, place, is_win
 
 
 class LocalSearch:
     def __init__(self):
-       pass
+        pass
 
     def find(self, state: State, n_player: int, thinking_time: float) -> Tuple[str, str]:
         self.thinking_time = time() + thinking_time
@@ -25,280 +22,173 @@ class LocalSearch:
         # best_movement = (random.randint(0, state.board.col), random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])) #minimax algorithm
 
         # Local search with thinking time
-        best_movement = self.findHillClimbing(state, thinking_time)
+        best_movement = self.findHillClimbing(state, thinking_time, n_player)
             
         return best_movement
 
-    def quit_function(self,fn_name):
-        sys.stderr.flush()
-        thread.interrupt_main()
-
-    def Generate(self, state: State) -> Board :
+    def Generate(self, state: State, n_player: int) -> Tuple[int, str] :
         #choose column randomly
-        self.col = random.randint(0, state.board.col)
-        if self.player.quota == 3 and self.player.quota > 0:
-            self.pick_shape = random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])
+        col = random.randint(0, state.board.col-1)
+        myPlayer = state.players[n_player]
+
+        # choose shape
+        if myPlayer.quota == 3 and myPlayer.quota > 0:
+            pick_shape = random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])
         else:
-            self.pick_shape = self.player.shape
+            pick_shape = myPlayer.shape
 
         #create new state, add new piece
         i = 0
-        while (i < state.board.row and state.board[i, self.col].shape == ShapeConstant.BLANK):
+        while (i < state.board.row and state.board[i, col].shape == ShapeConstant.BLANK):
             i = i+1
         i = i-1
         
-        newboard = state.board # red flag
-        piece = Piece(self.pick_shape, self.player.color)
-        newboard.set_piece(i, self.col, piece)
+        # set current board
+        place(state, n_player, pick_shape , col)
 
-        return newboard
+        return (col, pick_shape)
 
-    def getRandomNeighbor (self, state: State, current: Board) -> Board :
+    def getRandomNeighbor (self, state: State, pick_col: int, pick_shape: str, n_player: int) -> Tuple[int, str] :
         #choose shape and column randomly
         while True:
-            sha = random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])
-            col = random.randint(0, state.board.col)
-            if (col != self.col or (col == self.col and sha != self.pick_shape)):
+            # choose shape
+            myPlayer = state.players[n_player]
+            if myPlayer.quota == 3 and myPlayer.quota > 0:
+                sha = random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])
+            else:
+                sha = myPlayer.shape
+
+            # choose column
+            col = random.randint(0, state.board.col-1)
+            if (col != pick_col or (col == pick_col and sha != pick_shape)):
                 break
             
         #create new state, add new piece
         i = 0
-        while (i < state.board.row and state.board.board[i, self.col].shape == ShapeConstant.BLANK):
+        while (i < state.board.row and state.board[i, pick_col].shape == ShapeConstant.BLANK):
             i = i+1
         i = i-1
 
-        newneighbor = state.board
-        piece = Piece(sha, self.player.color)
-        newneighbor.set_piece(i, self.col, piece)
+        # set current board
+        place(state, n_player, sha , col)
 
-        return newneighbor
+        return (col, sha)
 
-    def score (self, prior : GameConstant, shape: str, count: int) -> int:
-        if (shape == self.player.shape):
-            if (prior == GameConstant.SHAPE):
-                if (count == 2):
-                    return 4
-                elif (count==3):
-                    return 10
-                elif (count==4):
-                    return 1000
-            else:
-                if (count == 2):
-                    return 2
-                elif (count==3):
-                    return 5
-                elif (count==4):
-                    return 1000
-        else:                        
-            if (prior == GameConstant.SHAPE):
-                if (count == 2):
-                    return -4
-                elif (count==3):
-                    return -10
-                elif (count==4):
-                    return -10000
-
-    def streakscorehorizontal(self, board: Board, shape:str, color:str) -> int:
-        # mendapatkan total value dilihat dari streak horizontal dari pemain dengan shape dan color
-        value = 0
-        for prior in GameConstant.WIN_PRIOR:
-            for i in range (board.row):
-                startpoint = 0 # start point
-                while (startpoint < board.col and board[i,startpoint] != ShapeConstant.BLANK):
-                    count = 0
-                    for j in range (startpoint, startpoint+5):
-                        shape_condition = (
-                            prior == GameConstant.SHAPE
-                            and board.board[i,j].shape != shape
-                        )
-                        color_condition = (
-                            prior == GameConstant.COLOR
-                            and board.board[i,j].color != color
-                        )
-                        if shape_condition or color_condition:
-                            break
-                        count+=1
-                    value = value + self.score(prior, shape, count)
-                    startpoint = startpoint + count + 1
-        return value
-    
-    def streakscorevertical(self, board: Board, shape: str, color: str) -> int:
-         # mendapatkan total value dilihat dari streak vertikal dari pemain dengan shape dan color
-        value = 0
-        for prior in GameConstant.WIN_PRIOR:
-            for j in range (board.col):
-                startpoint = 0 # start point
-                while (startpoint < board.row and board[startpoint,j] != ShapeConstant.BLANK):
-                    count = 0
-                    for i in range (startpoint, startpoint+5):
-                        shape_condition = (
-                            prior == GameConstant.SHAPE
-                            and board.board[i,j].shape != shape
-                        )
-                        color_condition = (
-                            prior == GameConstant.COLOR
-                            and board.board[i,j].color != color
-                        )
-                        if shape_condition or color_condition:
-                            break
-                        count+=1
-                    value = value + self.score(prior, shape, count)
-                    startpoint = startpoint + count + 1
-        return value
-
-    def streakscorediagonalpositive(self, board: Board, shape: str, color: str) -> int:
-         # mendapatkan total value dilihat dari streak diagonal positif (m=1) dari pemain dengan shape dan color
-        value = 0
+    # UTILITY FUNCTION
+    # Menghitung kesamaan bidak
+    def count(self, listpiece, piece) -> Tuple[int, int]:
+        n_shape, n_color = 0, 0
 
         for prior in GameConstant.WIN_PRIOR:
-            for idx in range (board.row-1, -1, -1):
-                i = idx # start point
-                j = 0
-                while (i < board.row and j < board.col):
-                    count = 0
-                    while (count <= 4 and i < board.row and j < board.col):
-                        shape_condition = (
-                            prior == GameConstant.SHAPE
-                            and board.board[i,j].shape != shape
-                        )
-                        color_condition = (
-                            prior == GameConstant.COLOR
-                            and board.board[i,j].color != color
-                        )
-                        if shape_condition or color_condition:
-                            i+=1
-                            j+=1
-                            break
-                        count+=1
-                        i+=1
-                        j+=1
-                    value = value + self.score(prior, shape, count)
-                    i+=1
-                    j+=1
+            for el in listpiece:
 
-            for idx in range (1, board.col-1):
-                j = idx 
-                i = 0
-                while (i < board.row and j < board.col):
-                    count = 0
-                    while (count <= 4 and i < board.row and j < board.col):
-                        shape_condition = (
-                            prior == GameConstant.SHAPE
-                            and board.board[i,j].shape != shape
-                        )
-                        color_condition = (
-                            prior == GameConstant.COLOR
-                            and board.board[i,j].color != color
-                        )
-                        if shape_condition or color_condition:
-                            i+=1
-                            j+=1
-                            break
-                        count+=1
-                        i+=1
-                        j+=1
-                    value = value + self.score(prior, shape, count)
-                    i+=1
-                    j+=1
+                shape_condition = (
+                    prior == GameConstant.SHAPE
+                    and el.shape == piece.shape
+                )
+                color_condition = (
+                    prior == GameConstant.COLOR
+                    and el.color == piece.color
+                )
+
+                if shape_condition:
+                    n_shape += 1
+                if color_condition:
+                    n_color += 1
+
+        return (n_shape, n_color)
+
+    # Menghitung score        
+    def scoring(self, state: State, window, piece, n_player) -> int:
+        score = 0
+
+        opp_piece = Piece(state.players[1-n_player].shape, state.players[1-n_player].color)
+        blank_piece = Piece(ShapeConstant.BLANK, ColorConstant.BLACK)
+
+        ## Shape
+        if self.count(window, piece)[0] == 4:
+            score += 200
+        elif self.count(window, piece)[0] == 3 and self.count(window, blank_piece)[0] == 1:
+            score += 10
+        elif self.count(window, piece)[0] == 2 and self.count(window, blank_piece)[0] == 2:
+            score += 4
+
+        ## Color
+        if self.count(window, piece)[1] == 4:
+            score += 100
+        elif self.count(window, piece)[1] == 3 and self.count(window, blank_piece)[1] == 1:
+            score += 5
+        elif self.count(window, piece)[1] == 2 and self.count(window, blank_piece)[1] == 2:
+            score += 2
+
+        ## Opponent
+        if self.count(window, opp_piece)[0] == 3 and self.count(window, blank_piece)[0] == 1:
+            score -= 8
+        if self.count(window, opp_piece)[1] == 3 and self.count(window, blank_piece)[1] == 1:
+            score -= 4
+
+        return score
+        
+    def value(self, state: State, piece, n_player) -> int:
+        score = 0
+
+        opp_piece = Piece(state.players[1-n_player].shape, state.players[1-n_player].color)
+
+        ## Score center column
+        center_array = [state.board[i, state.board.col//2] for i in range(state.board.row)]
+        center_count = self.count(center_array, piece)[0] * 2 + self.count(center_array, piece)[1]
+        score += center_count * 3
+
+        # Score Horizontal
+        for r in range(state.board.row):
+            row_array = [p for p in list(state.board[r,:])]
+            for c in range(state.board.col-3):
+                window = row_array[c:c+GameConstant.N_COMPONENT_STREAK]
+                score += self.scoring(state, window, piece, n_player)
+
+        # Score Vertical
+        for c in range(state.board.col):
+            col_array = [state.board[i,c] for i in range(state.board.row)]
+            for r in range(state.board.row-3):
+                window = col_array[r:r+GameConstant.N_COMPONENT_STREAK]
+                score += self.scoring(state, window, piece, n_player)
+
+        # Score diagonal
+        for r in range(state.board.row-3):
+            for c in range(state.board.col-3):
+                window = [state.board[r+i, c+i] for i in range(GameConstant.N_COMPONENT_STREAK)]
+                score += self.scoring(state, window, piece, n_player)
                 
-        return value
+        for r in range(state.board.row-3):
+            for c in range(state.board.col-3):
+                window = [state.board[r+3-i, c+i] for i in range(GameConstant.N_COMPONENT_STREAK)]
+                score += self.scoring(state, window, piece, n_player)
 
-    def streakscorediagonalnegative(self, board: Board, shape: str, color: str) -> int:
-         # mendapatkan total value dilihat dari streak diagonal negatif (m=-1) dari pemain dengan shape dan color
-        value = 0
+        return score
 
-        for prior in GameConstant.WIN_PRIOR:
-            for idx in range (1, board.row):
-                i = idx # start point
-                j = 0
-                while (i >= 0 and j < board.col):
-                    count = 0
-                    while (count <= 4 and i >= 0 and j < board.col):
-                        shape_condition = (
-                            prior == GameConstant.SHAPE
-                            and board.board[i,j].shape != shape
-                        )
-                        color_condition = (
-                            prior == GameConstant.COLOR
-                            and board.board[i,j].color != color
-                        )
-                        if shape_condition or color_condition:
-                            i-=1
-                            j+=1
-                            break
-                        count+=1
-                        i-=1
-                        j+=1
-                    value = value + self.score(prior, shape, count)
-                    i-=1
-                    j+=1
+    def findHillClimbing (self, state: State, thinking_time: int, n_player:int) -> Tuple[str, str]:
 
-            for idx in range (1, board.col-1):
-                j = idx 
-                i = board.row-1
-                while (i >= 0 and j < board.col):
-                    count = 0
-                    while (count <= 4 and i >= 0 and j < board.col):
-                        shape_condition = (
-                            prior == GameConstant.SHAPE
-                            and board.board[i,j].shape != shape
-                        )
-                        color_condition = (
-                            prior == GameConstant.COLOR
-                            and board.board[i,j].color != color
-                        )
-                        if shape_condition or color_condition:
-                            i-=1
-                            j+=1
-                            break
-                        count+=1
-                        i-=1
-                        j+=1
-                    value = value + self.score(prior, shape, count)
-                    i-=1
-                    j+=1
-                
-        return value
+        # setting variables
+        time_now= time()
 
-    def valuepemain (self, board: Board, pemain: Player) -> int:
-        horizontal = self.streakscorehorizontal(board,pemain.shape, pemain.color)
-        vertical = self.streakscorevertical(board,pemain.shape, pemain.color)
-        diagonalpositive = self.streakscorediagonalpositive(board,pemain.shape, pemain.color)
-        diagonalnegative = self.streakscorediagonalnegative(board,pemain.shape, pemain.color)
-        return  horizontal + vertical + diagonalpositive + diagonalnegative
+        current = copy.deepcopy(state)
+        neighbor = copy.deepcopy(state)
 
-    def value(self, board:Board, state : State) -> int:
-        pemain1 = self.player #kita
-        pemain2 = state.players[(state.round)%2] #lawan
-        return self.valuepemain(board, pemain1) - self.valuepemain(board, pemain2)
+        # generate one random state
+        hasil_generate = self.Generate(current, n_player)
 
-    def getColumnShape(self): 
-        return (self.col, self.pick_shape)
+        col = hasil_generate[0]
+        pick_shape = hasil_generate[1]
 
-    def findHillClimbing (self, state: State, thinking_time: int) -> Tuple[str, str]:
+        piece = Piece(state.players[n_player].shape, state.players[n_player].color)
 
-        timer = threading.Timer(thinking_time-0.2, self.quit_function)
-        timer.start()
+        # iterate - stochastic hill climbing
+        i=0
+        while (is_win(neighbor.board) == None and (time()-time_now) < 2.8):
+            hasil_neigboard = self.getRandomNeighbor(neighbor, col, pick_shape, n_player)
+            if self.value(neighbor, piece, n_player) > self.value(current, piece, n_player) :
+                col = hasil_neigboard[0]
+                pick_shape = hasil_neigboard[1]
+            i+=1
 
-        self.player = state.players[(state.round-1)%2]
-
-        current = self.Generate(state)
-        try:
-            while (self.value(current, state) < Value.WIN) :
-                neighbor = self.getRandomNeighbor(state, current)
-                if self.value(neighbor, state) > self.value(current, state) :
-                    current = neighbor
-        finally:
-            timer.cancel()
-
-        return (self.getColumnShape())
-
-
-    
-
-
-
-
-
-
-    
+        return (col, pick_shape)
