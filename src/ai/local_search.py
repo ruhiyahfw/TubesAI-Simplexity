@@ -121,12 +121,16 @@ class LocalSearch:
         elif self.count(window, piece)[1] == 2 and self.count(window, blank_piece)[1] == 2:
             score += 2
 
-        ## Opponent
+         ## Opponent
         if self.count(window, opp_piece)[0] == 3 and self.count(window, blank_piece)[0] == 1:
-            score -= 8
+            score -= 200
         if self.count(window, opp_piece)[1] == 3 and self.count(window, blank_piece)[1] == 1:
-            score -= 4
-
+            score -= 100
+        if self.count(window, opp_piece)[0] == 2 and self.count(window, blank_piece)[0] == 2:
+            score -= 10
+        if self.count(window, opp_piece)[1] == 2 and self.count(window, blank_piece)[1] == 2:
+            score -= 5
+        
         return score
         
     def value(self, state: State, piece, n_player) -> int:

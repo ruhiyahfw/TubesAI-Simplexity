@@ -30,6 +30,7 @@ class Minimax:
 
         # Alternatif
         except KeyboardInterrupt:
+            print("Waktu Hampir Habis")
             best_movement = self.InstantMinimax(state, n_player)
 
         finally:
@@ -95,10 +96,14 @@ class Minimax:
 
         ## Opponent
         if self.count(window, opp_piece)[0] == 3 and self.count(window, blank_piece)[0] == 1:
-            score -= 8
+            score -= 200
         if self.count(window, opp_piece)[1] == 3 and self.count(window, blank_piece)[1] == 1:
-            score -= 4
-
+            score -= 100
+        if self.count(window, opp_piece)[0] == 2 and self.count(window, blank_piece)[0] == 2:
+            score -= 10
+        if self.count(window, opp_piece)[1] == 2 and self.count(window, blank_piece)[1] == 2:
+            score -= 5
+        
         return score
         
     def value(self, state: State, piece, n_player) -> int:
@@ -107,7 +112,7 @@ class Minimax:
         ## Score center column
         center_array = [state.board[i, state.board.col//2] for i in range(state.board.row)]
         center_count = self.count(center_array, piece)[0] * 2 + self.count(center_array, piece)[1]
-        score += center_count * 3
+        score += center_count * 2
 
         # Score Horizontal
         for r in range(state.board.row):
@@ -151,6 +156,15 @@ class Minimax:
                 valid_local.append(col)
 
         return valid_local
+
+    def get_valid_shape(self, cur_state : State, n_player):
+        valid_local = [cur_state.players[n_player].shape, cur_state.players[1-n_player].shape]
+
+        for shp in valid_local:
+            if cur_state.players[n_player].quota[shp] == 0:
+                valid_local.remove(shp)
+
+        return valid_local
     
     def is_terminal_node(self, cur_state: State):
         return (is_win(cur_state.board) or (len(self.get_location_valid(cur_state)) == 0) )
@@ -160,7 +174,7 @@ class Minimax:
             if(state.board[row, col] == Piece(ShapeConstant.BLANK, ColorConstant.BLACK)):
                 return row
     
-    def alpha_beta_search(self, cur_state : State, n_player, depth, alpha, beta, maximizing) -> Tuple[str, int, int]:
+    def alpha_beta_search(self, cur_state, n_player, depth, alpha, beta, maximizing) -> Tuple[str, int, int]:
         # return (shape : str, col : int, val : int)
         is_terminal = self.is_terminal_node(cur_state)
         valid_locations = self.get_location_valid(cur_state)
@@ -181,17 +195,16 @@ class Minimax:
         
         if maximizing:
             v = -np.inf
+            valid_shp = self.get_valid_shape(cur_state,n_player)
             column = random.choice(valid_locations)
-
-            for shp in [cur_state.players[n_player].shape, cur_state.players[1-n_player].shape]:
+            for shp in valid_shp:
                 for col in valid_locations:
 
                     row = self.get_next_open_row(cur_state, col)
                     state_temp = copy.deepcopy(cur_state)
                     place(state_temp, n_player, shp, col) # misal ai = 1, player = 0
                     new_score = self.alpha_beta_search(state_temp, n_player, depth-1, alpha, beta, False)[2] # value
-                    
-                    if(new_score >= v):
+                    if(new_score > v):
                         v = new_score
                         column = col
                         shape = shp
@@ -206,17 +219,16 @@ class Minimax:
 
         else: # minimizing
             v = np.inf
+            valid_shp = self.get_valid_shape(cur_state,1-n_player)
             column = random.choice(valid_locations)
-
-            for shp in [cur_state.players[1-n_player].shape, cur_state.players[n_player].shape]:
+            for shp in valid_shp:
                 for col in valid_locations:
 
                     row = self.get_next_open_row(cur_state, col)
                     state_temp = copy.deepcopy(cur_state)
                     place(state_temp, 1-n_player, shp, col) # misal ai = 1, player = 0
                     new_score = self.alpha_beta_search(state_temp, n_player, depth-1, alpha, beta, True)[2] # value
-
-                    if(new_score <= v):
+                    if(new_score < v):
                         v = new_score
                         column = col
                         shape = shp
