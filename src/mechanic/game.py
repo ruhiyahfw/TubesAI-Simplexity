@@ -56,7 +56,7 @@ class Game:
         elif self.config.game_type == GameConstant.PVB:
             if not self.config.is_dump:
                 # You can change model used here
-                model = Minimax()
+                model = LocalSearchGroup14()
             else:
                 # Don't change this
                 model = pickle.load(open(Path.PVB, "rb"))

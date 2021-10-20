@@ -443,7 +443,7 @@ class LocalSearchGroup14:
         # print("awal ",value_current)
         # print("kolom ",col)
 
-        while (is_win(current.board) == None and (time()-time_now) < 2.8 and i <1000):
+        while (is_win(current.board) == None and (time()-time_now) < (thinking_time - 0.2) and i <1000):
             neighbor = copy.deepcopy(state)
             hasil_neigboard = self.getRandomNeighbor(neighbor, col, pick_shape, n_player)
             value_neighboard = self.value(neighbor, piece, n_player)
