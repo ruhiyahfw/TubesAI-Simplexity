@@ -11,7 +11,7 @@ from src.model import State, Board, Player, Piece
 from src.utility import is_full, is_out, check_streak, place, is_win
 
 
-class LocalSearch:
+class LocalSearchGroup14:
     def __init__(self):
         pass
 
@@ -26,16 +26,27 @@ class LocalSearch:
             
         return best_movement
 
+    def getShapeQuota(self, myPlayer: Player) -> int:
+        hasil = None
+        for k, v in myPlayer.quota.items():
+            if(myPlayer.shape == k):
+                hasil = v
+
+        return int(hasil)
+
     def Generate(self, state: State, n_player: int) -> Tuple[int, str] :
         #choose column randomly
         col = random.randint(0, state.board.col-1)
         myPlayer = state.players[n_player]
 
         # choose shape
-        if myPlayer.quota == 3 and myPlayer.quota > 0:
+        
+        if self.getShapeQuota(myPlayer) > 3:
+            pick_shape = myPlayer.shape #my shape
+        elif self.getShapeQuota(myPlayer) <= 3 and self.getShapeQuota(myPlayer) > 0:
             pick_shape = random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])
         else:
-            pick_shape = myPlayer.shape
+            pick_shape = state.players[1-n_player].shape #opponent shape
 
         #create new state, add new piece
         i = 0
@@ -45,18 +56,24 @@ class LocalSearch:
         
         # set current board
         place(state, n_player, pick_shape , col)
+        
+        #tambah quota
+        state.players[n_player].quota[pick_shape] += 1
 
         return (col, pick_shape)
 
     def getRandomNeighbor (self, state: State, pick_col: int, pick_shape: str, n_player: int) -> Tuple[int, str] :
         #choose shape and column randomly
+        myPlayer = state.players[n_player]
         while True:
             # choose shape
-            myPlayer = state.players[n_player]
-            if myPlayer.quota == 3 and myPlayer.quota > 0:
+            
+            if self.getShapeQuota(myPlayer) > 3:
+                sha = myPlayer.shape
+            elif self.getShapeQuota(myPlayer) <= 3 and self.getShapeQuota(myPlayer) > 0:
                 sha = random.choice([ShapeConstant.CROSS, ShapeConstant.CIRCLE])
             else:
-                sha = myPlayer.shape
+                sha = state.players[1-n_player].shape #opponent shape
 
             # choose column
             col = random.randint(0, state.board.col-1)
@@ -71,6 +88,9 @@ class LocalSearch:
 
         # set current board
         place(state, n_player, sha , col)
+
+        #tambah quota
+        state.players[n_player].quota[sha] += 1
 
         return (col, sha)
 
@@ -188,11 +208,17 @@ class LocalSearch:
 
         # iterate - stochastic hill climbing
         i=0
+        v = self.value(current, piece, n_player)
+        print("awal ",v)
+        print("kolom ",col)
         while (is_win(neighbor.board) == None and (time()-time_now) < 2.8):
             hasil_neigboard = self.getRandomNeighbor(neighbor, col, pick_shape, n_player)
             if self.value(neighbor, piece, n_player) > self.value(current, piece, n_player) :
                 col = hasil_neigboard[0]
                 pick_shape = hasil_neigboard[1]
+                v = self.value(neighbor, piece, n_player)
             i+=1
+
+        print(col, "dan", v)
 
         return (col, pick_shape)

@@ -14,7 +14,7 @@ from src.model.piece import Piece
 from typing import Tuple, List
 
 
-class Minimax:
+class MinimaxGroup14:
     def __init__(self):
         pass
 
