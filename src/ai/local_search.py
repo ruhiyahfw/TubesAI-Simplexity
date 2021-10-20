@@ -190,6 +190,41 @@ class LocalSearchGroup14:
 
         return score
 
+    # STOCHASTIC HILL CLIMBING
+    def findHillClimbing (self, state: State, thinking_time: int, n_player:int) -> Tuple[str, str]:
+
+        # setting variables
+        time_now= time()
+        current = copy.deepcopy(state)
+
+        # generate one random state
+        hasil_generate = self.Generate(current, n_player)
+        col = hasil_generate[0]
+        pick_shape = hasil_generate[1]
+        piece = Piece(state.players[n_player].shape, state.players[n_player].color)
+
+        # iterate - stochastic hill climbing
+        i=0
+        value_current = self.value(current, piece, n_player)
+
+        while (is_win(current.board) == None and (time()-time_now) < (thinking_time - 0.2) and i <1000):
+            neighbor = copy.deepcopy(state)
+            hasil_neigboard = self.getRandomNeighbor(neighbor, col, pick_shape, n_player)
+            value_neighboard = self.value(neighbor, piece, n_player)
+            if value_neighboard > value_current :
+                #ubah kolom dan shape yang dipilih
+                col = hasil_neigboard[0]
+                pick_shape = hasil_neigboard[1]
+
+                #ubah current jadi neighboard
+                current = copy.deepcopy(neighbor)
+                value_current = value_neighboard 
+            i+=1
+
+
+        return (col, pick_shape)
+
+
     # # UTILITY FUNCTION - 2
     # def score (self, prior : str, player: Player, count: int, isKita: int) -> int:
     #     if (isKita == 1): #score kita
@@ -421,42 +456,3 @@ class LocalSearchGroup14:
     #     return self.valuepemain(state, myPlayer, 1) - self.valuepemain(state, opponent, 0)
 
 
-    # STOCHASTIC HILL CLIMBING
-    def findHillClimbing (self, state: State, thinking_time: int, n_player:int) -> Tuple[str, str]:
-
-        # setting variables
-        time_now= time()
-
-        current = copy.deepcopy(state)
-
-        # generate one random state
-        hasil_generate = self.Generate(current, n_player)
-
-        col = hasil_generate[0]
-        pick_shape = hasil_generate[1]
-
-        piece = Piece(state.players[n_player].shape, state.players[n_player].color)
-
-        # iterate - stochastic hill climbing
-        i=0
-        value_current = self.value(current, piece, n_player)
-        # print("awal ",value_current)
-        # print("kolom ",col)
-
-        while (is_win(current.board) == None and (time()-time_now) < (thinking_time - 0.2) and i <1000):
-            neighbor = copy.deepcopy(state)
-            hasil_neigboard = self.getRandomNeighbor(neighbor, col, pick_shape, n_player)
-            value_neighboard = self.value(neighbor, piece, n_player)
-            if value_neighboard > value_current :
-                #ubah kolom dan shape yang dipilih
-                col = hasil_neigboard[0]
-                pick_shape = hasil_neigboard[1]
-
-                #ubah current jadi neighboard
-                current = copy.deepcopy(neighbor)
-                value_current = value_neighboard 
-            i+=1
-
-        # print(col, "dan", value_current)
-
-        return (col, pick_shape)
